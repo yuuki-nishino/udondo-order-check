@@ -9,6 +9,7 @@ export interface OrderItem {
   potNumbers: number[] // 茹でがま番号を配列として管理
   toppings?: string[] // トッピングを追加
   isParboiled?: boolean // 仮茹でしているかどうか
+  isCooked?: boolean; // 調理完了状態
 }
 
 export interface Order {

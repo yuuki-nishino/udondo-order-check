@@ -5,7 +5,8 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, XCircle, FastForward, PlusCircle } from "lucide-react"
-import type { Order } from "@/lib/types"
+import type { Order, OrderItem } from "@/lib/types"
+import { menuItems } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import UdonTimer from "./udon-timer"
 
@@ -15,9 +16,10 @@ interface OrderCardProps {
   onComplete: (orderId: string) => void
   onCancel: (orderId: string) => void
   onMarkAsReady: (orderId: string) => void
+  onTimerComplete: (orderId: string, itemId: string) => void
 }
 
-export default function OrderCard({ order, onStartTimer, onComplete, onCancel, onMarkAsReady }: OrderCardProps) {
+export default function OrderCard({ order, onStartTimer, onComplete, onCancel, onMarkAsReady, onTimerComplete }: OrderCardProps) {
   // ステータスに応じたカードの背景色を設定
   const getCardClass = (status: string) => {
     switch (status) {
@@ -43,8 +45,32 @@ export default function OrderCard({ order, onStartTimer, onComplete, onCancel, o
   // アイテムのカテゴリに基づいて調理が必要かどうかを判断する
   const needsCooking = (type: string): boolean => {
     // お水や単品のカレーなど、調理の必要がないアイテムを判断
-    return !["お水", "みつか坊主のエビ味噌咖喱（単品）", "黒毛和牛スジ和風大阪出汁カレー"].includes(type);
+    const menuItem = menuItems.find(mi => mi.name === type);
+    if (!menuItem) return true; // 不明なアイテムは調理必要とみなす
+    return menuItem.category === "udondo"; // うどんカテゴリのみ調理必要とする (より厳密に)
   }
+
+  // 注文内のうどんアイテムを取得
+  const udonItems = order.items.filter(item => 
+    menuItems.find(mi => mi.name === item.type)?.category === 'udondo'
+  );
+
+  // すべてのうどんアイテムの調理が開始されているか
+  const allUdonCookingStarted = udonItems.length > 0 && udonItems.every(item => item.cookingStartTime);
+  
+  // すべてのうどんアイテムが調理完了しているか (調理開始済みかつisCookedがtrue)
+  const allUdonItemsCooked = udonItems.length > 0 && udonItems.every(item => item.cookingStartTime && item.isCooked);
+
+  // 準備完了ボタンを有効にする条件
+  // 1. 注文ステータスが「新規」または「準備中」であること
+  // 2. 注文にうどんアイテムが1つ以上含まれること
+  // 3. すべてのうどんアイテムの調理が開始されていること (cookingStartTime がある)
+  // 4. すべてのうどんアイテムの isCooked が true であること
+  const canMarkAsReady = 
+    (order.status === "新規" || order.status === "準備中") &&
+    udonItems.length > 0 &&
+    allUdonCookingStarted &&
+    allUdonItemsCooked;
 
   // 注文内のすべてのアイテムの調理が完了したかどうかをチェック
   const allItemsReady = order.items.every((item) => 
@@ -137,7 +163,12 @@ export default function OrderCard({ order, onStartTimer, onComplete, onCancel, o
               </div>
 
               {needsCooking(item.type) ? (
-                <UdonTimer item={item} orderId={order.id} onStartTimer={onStartTimer} />
+                <UdonTimer 
+                  item={item} 
+                  orderId={order.id} 
+                  onStartTimer={onStartTimer} 
+                  onTimerComplete={(itemId) => onTimerComplete(order.id, itemId)}
+                />
               ) : (
                 <Badge className="bg-gray-600 text-gray-200 shadow-sm transition-none">調理不要</Badge>
               )}
@@ -153,26 +184,21 @@ export default function OrderCard({ order, onStartTimer, onComplete, onCancel, o
             size="lg" 
             className={cn(
               "text-lg font-medium shadow-lg hover:shadow-xl transition-all relative overflow-hidden w-full",
-              order.status === "新規"
-                ? "bg-gray-600 hover:bg-gray-600"
-                : order.status === "準備中"
-                  ? (allItemsReady 
-                      ? "bg-amber-500 hover:bg-amber-600" 
-                      : someItemsReady 
-                        ? "bg-amber-600 hover:bg-amber-700"
-                        : "bg-amber-600 hover:bg-amber-700")
-                  : "bg-gray-600 hover:bg-gray-700"
+              canMarkAsReady
+                ? "bg-amber-500 hover:bg-amber-600" 
+                : "bg-gray-600 hover:bg-gray-700 opacity-50 cursor-not-allowed"
             )}
             onClick={() => {
-              console.log("準備完了ボタンクリック:", order.id, order.status);
-              onMarkAsReady(order.id);
+              if (canMarkAsReady) {
+                onMarkAsReady(order.id);
+              }
             }}
-            disabled={order.status === "新規" || hasActiveTimers || (!someItemsReady && !allItemsReady)}
+            disabled={!canMarkAsReady}
           >
-            {allItemsReady && !hasActiveTimers && order.status !== "新規" && (
+            {canMarkAsReady && (
               <span className="absolute inset-0 bg-white opacity-20 animate-pulse"></span>
             )}
-            <FastForward className={cn("mr-2 h-5 w-5", allItemsReady && !hasActiveTimers && order.status !== "新規" && "animate-bounce")} />
+            <FastForward className={cn("mr-2 h-5 w-5", canMarkAsReady && "animate-bounce")} />
             準備完了にする
           </Button>
         ) : (

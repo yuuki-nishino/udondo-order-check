@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Bell, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -180,15 +180,15 @@ export default function OrderManagementSystem() {
 
   // タイマーの開始
   const startTimer = (orderId: string, itemId: string, firmness: string, isParboiled: boolean = false) => {
-    // 固さに応じた調理時間を設定
+    // 固さに応じた調理時間を設定 (テスト用)
     const cookingTimes: {[key: string]: number} = {
-      やわらかめ: 300,
-      ふつう: 420,
-      かため: 600,
+      やわらかめ: 20,
+      ふつう: 40,
+      かため: 60,
     }
 
-    // 仮茹での場合は3分（180秒）短縮
-    const parboiledReduction = isParboiled ? 180 : 0;
+    // 仮茹での場合は10秒短縮 (テスト用)
+    const parboiledReduction = isParboiled ? 10 : 0;
 
     setOrders((prev) => {
       return prev.map((order) => {
@@ -199,8 +199,8 @@ export default function OrderManagementSystem() {
         if (!item) return order
 
         const quantity = item.quantity
-        // 仮茹で時は時間を短縮（最低2分は確保）
-        const cookingTime = Math.max(120, cookingTimes[firmness] - parboiledReduction);
+        // 仮茹で時は時間を短縮（最低5秒は確保）(テスト用)
+        const cookingTime = Math.max(5, cookingTimes[firmness] - parboiledReduction);
         // 数量分の茹でがま番号を取得
         const potNumbers = getAvailablePotNumbers(quantity)
 
@@ -216,6 +216,7 @@ export default function OrderManagementSystem() {
                   cookingStartTime: new Date().toISOString(),
                   potNumbers: potNumbers, // 茹でがま番号の配列を設定
                   isParboiled: isParboiled, // 仮茹で状態を保存
+                  isCooked: false, // 調理未完了に設定
                 }
               : item
           ),
@@ -261,6 +262,22 @@ export default function OrderManagementSystem() {
       return newOrders;
     });
   }
+
+  // タイマー完了処理
+  const handleTimerComplete = useCallback((orderId: string, itemId: string) => {
+    setOrders((prevOrders) =>
+      prevOrders.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              items: order.items.map((item) =>
+                item.id === itemId ? { ...item, isCooked: true, timerRunning: false } : item
+              ),
+            }
+          : order
+      )
+    );
+  }, [setOrders]);
 
   // 注文完了処理
   const completeOrder = (orderId: string) => {
@@ -354,6 +371,7 @@ export default function OrderManagementSystem() {
             onComplete={completeOrder}
             onCancel={cancelOrder}
             onMarkAsReady={markOrderAsReady}
+            onTimerComplete={handleTimerComplete}
           />
         ))}
 

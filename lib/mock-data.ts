@@ -39,7 +39,7 @@ export const mockOrders: Order[] = [
         firmness: "やわらかめ",
         quantity: 1,
         timerRunning: true,
-        timeRemaining: 120,
+        timeRemaining: 20,
         cookingStartTime: new Date(Date.now() - 3 * 60000).toISOString(),
         potNumbers: [2],
         toppings: ["麹漬け旨煮鶏", "ウドンドの覚醒（激辛ウマすりだね）"]
