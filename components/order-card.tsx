@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +20,17 @@ interface OrderCardProps {
 }
 
 export default function OrderCard({ order, onStartTimer, onComplete, onCancel, onMarkAsReady, onTimerComplete }: OrderCardProps) {
+  const [formattedTime, setFormattedTime] = useState<string>("")
+
+  useEffect(() => {
+    setFormattedTime(
+      new Date(order.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    )
+  }, [order.createdAt])
+
   // ステータスに応じたカードの背景色を設定
   const getCardClass = (status: string) => {
     switch (status) {
@@ -99,7 +110,7 @@ export default function OrderCard({ order, onStartTimer, onComplete, onCancel, o
         <div>
           <h3 className="text-xl font-bold text-white">{order.id}</h3>
           <p className="text-sm text-gray-300">
-            {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {formattedTime}
           </p>
         </div>
         <Badge
